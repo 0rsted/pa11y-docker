@@ -1,0 +1,60 @@
+name: Refresh upstream versions
+
+on:
+  schedule:
+    - cron: "0 0 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Resolve latest stable releases
+        shell: bash
+        run: |
+          set -euo pipefail
+          pa11y_version="$(curl --fail --retry 3 -sS https://api.github.com/repos/pa11y/pa11y-dashboard/releases/latest | jq -r .tag_name)"
+          upstream_package="$(curl --fail --retry 3 -sS "https://raw.githubusercontent.com/pa11y/pa11y-dashboard/${pa11y_version}/package.json")"
+          node_engine="$(jq -r '.engines.node // empty' <<<"${upstream_package}")"
+          test -n "$node_engine"
+          npm install --no-save --ignore-scripts semver@latest >/dev/null
+          node_version="$(curl --fail --retry 3 -sS https://nodejs.org/dist/index.json \
+            | NODE_ENGINE="${node_engine}" node -e '
+              const fs = require("fs");
+              const semver = require("semver");
+              const releases = JSON.parse(fs.readFileSync(0, "utf8"));
+              const match = releases.find((release) => release.lts !== false && semver.satisfies(release.version, process.env.NODE_ENGINE));
+              if (!match) process.exit(1);
+              process.stdout.write(match.version.slice(1));
+            ')"
+          mongo_major="$(curl --fail --retry 3 -sS "https://raw.githubusercontent.com/pa11y/pa11y-dashboard/${pa11y_version}/README.md" \
+            | sed -nE 's/.*latest major version is `([0-9]+)`.*/\1/p' | head -n 1)"
+          mongo_major="${mongo_major:-8}"
+          mongo_token="$(curl --fail --retry 3 -sS 'https://auth.docker.io/token?service=registry.docker.io&scope=repository:library/mongo:pull' | jq -r .token)"
+          mongo_digest="$(curl --fail --retry 3 -sSI \
+            -H "Authorization: Bearer ${mongo_token}" \
+            -H 'Accept: application/vnd.oci.image.index.v1+json' \
+            "https://registry-1.docker.io/v2/library/mongo/manifests/${mongo_major}" \
+            | awk -F': ' 'tolower($1)=="docker-content-digest" {gsub("\r", "", $2); print $2}')"
+          test -n "$pa11y_version" -a "$pa11y_version" != null
+          test -n "$node_version" -a "$node_version" != null
+          test -n "$mongo_digest"
+          {
+            echo '# Updated automatically by .github/workflows/refresh-versions.yml.'
+            echo "PA11Y_DASHBOARD_VERSION=${pa11y_version}"
+            echo "NODE_VERSION=${node_version}"
+            echo "MONGO_IMAGE=mongo:${mongo_major}@${mongo_digest}"
+          } > versions.env
+      - name: Commit changes
+        shell: bash
+        run: |
+          if git diff --quiet -- versions.env; then exit 0; fi
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add versions.env
+          git commit -m "chore: refresh upstream image versions"
+          git push

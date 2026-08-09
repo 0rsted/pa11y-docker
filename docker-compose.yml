@@ -1,0 +1,31 @@
+services:
+  dashboard:
+    image: ${IMAGE_NAME:-ghcr.io/0rsted/pa11y-dashboard:latest}
+    ports:
+      - "${PORT:-4000}:4000"
+    environment:
+      PORT: 4000
+      WEBSERVICE_DATABASE: mongodb://root:${MONGO_ROOT_PASSWORD:-change-me}@mongo:27017/pa11y?authSource=admin
+      WEBSERVICE_HOST: 0.0.0.0
+      CHROMIUM_FLAGS: --no-sandbox,--disable-setuid-sandbox
+    depends_on:
+      mongo:
+        condition: service_healthy
+    restart: unless-stopped
+
+  mongo:
+    image: ${MONGO_IMAGE:-mongo:latest}
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: root
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD:-change-me}
+      MONGO_INITDB_DATABASE: pa11y
+    volumes:
+      - mongo-data:/data/db
+    healthcheck:
+      test: ["CMD-SHELL", "mongosh --quiet --eval 'db.runCommand({ ping: 1 }).ok' localhost:27017/test | grep 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  mongo-data:

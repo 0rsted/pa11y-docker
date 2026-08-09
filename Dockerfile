@@ -1,0 +1,61 @@
+# syntax=docker/dockerfile:1.7
+
+ARG NODE_VERSION=24.19.0
+
+FROM node:${NODE_VERSION}-bookworm-slim AS build
+
+ARG PA11Y_DASHBOARD_VERSION=latest
+ENV PUPPETEER_CACHE_DIR=/app/.cache/puppeteer
+
+WORKDIR /app
+
+# Clone only the selected upstream release. The final image contains no git,
+# compiler toolchain, or npm cache.
+RUN apt-get update \
+    && apt-get install --no-install-recommends -y ca-certificates curl git jq \
+    && release="${PA11Y_DASHBOARD_VERSION}" \
+    && if [ "$release" = latest ]; then \
+         release="$(curl --fail --retry 3 -sS https://api.github.com/repos/pa11y/pa11y-dashboard/releases/latest | jq -r .tag_name)"; \
+       fi \
+    && test -n "$release" -a "$release" != null \
+    && git clone --depth 1 --branch "$release" \
+        https://github.com/pa11y/pa11y-dashboard.git . \
+    && rm -rf .git /var/lib/apt/lists/*
+
+# Puppeteer's bundled Chromium needs these libraries at install time.
+RUN apt-get update \
+    && apt-get install --no-install-recommends -y \
+        fonts-liberation libasound2 libatk-bridge2.0-0 libatk1.0-0 \
+        libcups2 libdbus-1-3 libdrm2 libgbm1 libgtk-3-0 libnspr4 libnss3 \
+        libx11-xcb1 libxcomposite1 libxdamage1 libxrandr2 xdg-utils wget \
+    && PUPPETEER_SKIP_DOWNLOAD=true npm ci --omit=dev --ignore-scripts=false \
+    && npx --no-install puppeteer browsers install chrome \
+    && rm -rf /root/.npm /var/lib/apt/lists/*
+
+FROM node:${NODE_VERSION}-bookworm-slim AS runtime
+
+ARG PA11Y_DASHBOARD_VERSION=latest
+ARG NODE_VERSION
+LABEL org.opencontainers.image.title="Pa11y Dashboard" \
+      org.opencontainers.image.source="https://github.com/pa11y/pa11y-dashboard" \
+      org.opencontainers.image.version="${PA11Y_DASHBOARD_VERSION}" \
+      org.opencontainers.image.base.name="node:${NODE_VERSION}-bookworm-slim"
+
+RUN apt-get update \
+    && apt-get install --no-install-recommends -y \
+        fonts-liberation libasound2 libatk-bridge2.0-0 libatk1.0-0 \
+        libcups2 libdbus-1-3 libdrm2 libgbm1 libgtk-3-0 libnspr4 libnss3 \
+        libx11-xcb1 libxcomposite1 libxdamage1 libxrandr2 xdg-utils \
+    && groupadd --system pptruser \
+    && useradd --system --gid pptruser --groups audio,video --create-home pptruser \
+    && mkdir -p /home/pptruser/Downloads \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+COPY --from=build --chown=pptruser:pptruser /app /app
+
+USER pptruser
+ENV NODE_ENV=production \
+    PUPPETEER_CACHE_DIR=/app/.cache/puppeteer
+EXPOSE 4000
+CMD ["node", "index.js"]

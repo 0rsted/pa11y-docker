@@ -1,0 +1,49 @@
+name: Build and publish
+
+on:
+  push:
+    branches: [main, master]
+    paths:
+      - Dockerfile
+      - versions.env
+      - .github/workflows/publish.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Load pinned versions
+        shell: bash
+        run: cat versions.env >> "$GITHUB_ENV"
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: docker/metadata-action@v5
+        id: meta
+        with:
+          images: ghcr.io/${{ github.repository_owner }}/pa11y-dashboard
+          tags: |
+            type=raw,value=latest
+            type=raw,value=${{ env.PA11Y_DASHBOARD_VERSION }}
+            type=sha
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          platforms: linux/amd64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          build-args: |
+            NODE_VERSION=${{ env.NODE_VERSION }}
+            PA11Y_DASHBOARD_VERSION=${{ env.PA11Y_DASHBOARD_VERSION }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
