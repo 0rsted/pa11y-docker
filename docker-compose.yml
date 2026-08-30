@@ -4,8 +4,10 @@ services:
     ports:
       - "${PORT:-4000}:4000"
     volumes:
-      - "./data:/data"
+      - "./app:/app"
     environment:
+      PUID: ${PUID:-1000}
+      PGID: ${PGID:-1000}
       PORT: 4000
       WEBSERVICE_DATABASE: mongodb://root:${MONGO_ROOT_PASSWORD:-change-me}@mongo:27017/pa11y?authSource=admin
       WEBSERVICE_HOST: 0.0.0.0

@@ -20,16 +20,27 @@ MongoDB is intentionally a separate container. Start the stack with:
 docker compose up -d
 ```
 
-Generated files use `/data` as their working directory. The Compose setup
-maps this to `./data` on the host, so an action such as `screen capture
-example.png` writes to `./data/example.png`. Use absolute paths below `/data`
-for exports, for example `/data/exports/report.json`; create any subdirectory
-before using it because Pa11y does not create screenshot directories.
+The Compose setup maps `/app` to `./app` on the host. The application itself
+remains in the image, while an action such as `screen capture example.png`
+writes to `./app/example.png`. Use absolute paths below `/app` for exports, for example
+`/app/exports/report.json`; create any subdirectory before using it because
+Pa11y does not create screenshot directories.
+
+The container user is configurable with `PUID` and `PGID`. At startup, the
+image assigns `/app` to that runtime user so screenshots and exports can be
+written there:
+
+```sh
+PUID=$(id -u) PGID=$(id -g) docker compose up -d
+```
+
+On Windows or Docker Desktop, set `PUID` and `PGID` to values suitable for
+the host filesystem. They default to `1000`.
 
 When running the image directly, map a host directory explicitly:
 
 ```sh
-docker run --volume "$PWD/data:/data" --publish 4000:4000 \
+docker run --volume "$PWD/app:/app" --publish 4000:4000 \
   ghcr.io/0rsted/pa11y-dashboard:latest
 ```
 

@@ -5,9 +5,9 @@ ARG NODE_VERSION=24.19.0
 FROM node:${NODE_VERSION}-bookworm-slim AS build
 
 ARG PA11Y_DASHBOARD_VERSION=latest
-ENV PUPPETEER_CACHE_DIR=/app/.cache/puppeteer
+ENV PUPPETEER_CACHE_DIR=/opt/pa11y-dashboard/.cache/puppeteer
 
-WORKDIR /app
+WORKDIR /opt/pa11y-dashboard
 
 # Clone only the selected upstream release. The final image contains no git,
 # compiler toolchain, or npm cache.
@@ -56,17 +56,17 @@ RUN apt-get update \
     && mkdir -p /home/pptruser/Downloads \
     && rm -rf /var/lib/apt/lists/*
 
-WORKDIR /app
-COPY --from=build --chown=pptruser:pptruser /app /app
-# Runtime-generated screenshots and exports belong outside the application
-# tree so they can be persisted or mapped to the host filesystem.
-RUN mkdir -p /data \
-    && chown pptruser:pptruser /data
-VOLUME ["/data"]
-WORKDIR /data
+WORKDIR /opt/pa11y-dashboard
+COPY --from=build --chown=pptruser:pptruser /opt/pa11y-dashboard /opt/pa11y-dashboard
+COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
+RUN mkdir -p /app \
+    && chown pptruser:pptruser /app \
+    && chmod 0755 /usr/local/bin/docker-entrypoint.sh
 
-USER pptruser
 ENV NODE_ENV=production \
-    PUPPETEER_CACHE_DIR=/app/.cache/puppeteer
+    PUPPETEER_CACHE_DIR=/opt/pa11y-dashboard/.cache/puppeteer \
+    PUID=1000 \
+    PGID=1000
 EXPOSE 4000
-CMD ["node", "/app/index.js"]
+ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
+CMD ["node", "/opt/pa11y-dashboard/index.js"]
