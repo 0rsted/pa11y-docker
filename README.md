@@ -12,7 +12,7 @@ copyright, trademarks, or other rights is intended.
 This repository builds the official `pa11y/pa11y-dashboard` release as a small
 non-root `linux/amd64` image and publishes it to GHCR:
 
-`ghcr.io/<github-owner>/pa11y-dashboard`
+`ghcr.io/0rsted/pa11y-dashboard`
 
 MongoDB is intentionally a separate container. Start the stack with:
 
