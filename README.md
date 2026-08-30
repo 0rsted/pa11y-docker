@@ -32,7 +32,10 @@ MongoDB major. When any value changes it commits `versions.env`, which triggers
 `publish.yml`. The published image is AMD64-only by design.
 
 To publish from a fork, enable GitHub Actions and ensure the repository allows
-the workflow's `GITHUB_TOKEN` to write packages.
+the workflow's `GITHUB_TOKEN` to write packages. To publish to Docker Hub, add
+the repository variable `DOCKERHUB_USERNAME` and the repository secret
+`DOCKERHUB_TOKEN` (a Docker Hub access token with permission to push to the
+`pa11y-dashboard` repository).
 
 ## Licensing and attribution
 

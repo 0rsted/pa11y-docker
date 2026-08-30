@@ -37,7 +37,12 @@ FROM node:${NODE_VERSION}-bookworm-slim AS runtime
 ARG PA11Y_DASHBOARD_VERSION=latest
 ARG NODE_VERSION
 LABEL org.opencontainers.image.title="Pa11y Dashboard" \
+      org.opencontainers.image.description="Containerized Pa11y Dashboard for monitoring web accessibility" \
+      org.opencontainers.image.authors="Pa11y developers and contributors" \
+      org.opencontainers.image.url="https://github.com/pa11y/pa11y-dashboard" \
+      org.opencontainers.image.documentation="https://github.com/0rsted/pa11y-docker/blob/master/README.md" \
       org.opencontainers.image.source="https://github.com/pa11y/pa11y-dashboard" \
+      org.opencontainers.image.licenses="GPL-3.0-only" \
       org.opencontainers.image.version="${PA11Y_DASHBOARD_VERSION}" \
       org.opencontainers.image.base.name="node:${NODE_VERSION}-bookworm-slim"
 
