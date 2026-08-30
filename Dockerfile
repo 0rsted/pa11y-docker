@@ -58,9 +58,15 @@ RUN apt-get update \
 
 WORKDIR /app
 COPY --from=build --chown=pptruser:pptruser /app /app
+# Runtime-generated screenshots and exports belong outside the application
+# tree so they can be persisted or mapped to the host filesystem.
+RUN mkdir -p /data \
+    && chown pptruser:pptruser /data
+VOLUME ["/data"]
+WORKDIR /data
 
 USER pptruser
 ENV NODE_ENV=production \
     PUPPETEER_CACHE_DIR=/app/.cache/puppeteer
 EXPOSE 4000
-CMD ["node", "index.js"]
+CMD ["node", "/app/index.js"]

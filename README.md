@@ -20,6 +20,19 @@ MongoDB is intentionally a separate container. Start the stack with:
 docker compose up -d
 ```
 
+Generated files use `/data` as their working directory. The Compose setup
+maps this to `./data` on the host, so an action such as `screen capture
+example.png` writes to `./data/example.png`. Use absolute paths below `/data`
+for exports, for example `/data/exports/report.json`; create any subdirectory
+before using it because Pa11y does not create screenshot directories.
+
+When running the image directly, map a host directory explicitly:
+
+```sh
+docker run --volume "$PWD/data:/data" --publish 4000:4000 \
+  ghcr.io/0rsted/pa11y-dashboard:latest
+```
+
 Set a strong MongoDB password before production use. The default Compose
 configuration is suitable for local use; supply `MONGO_IMAGE` to use a
 different MongoDB image.

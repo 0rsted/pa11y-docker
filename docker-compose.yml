@@ -3,6 +3,8 @@ services:
     image: ${IMAGE_NAME:-ghcr.io/0rsted/pa11y-dashboard:latest}
     ports:
       - "${PORT:-4000}:4000"
+    volumes:
+      - "./data:/data"
     environment:
       PORT: 4000
       WEBSERVICE_DATABASE: mongodb://root:${MONGO_ROOT_PASSWORD:-change-me}@mongo:27017/pa11y?authSource=admin

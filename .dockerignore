@@ -3,3 +3,4 @@
 .dockerignore
 docker-compose.yml
 README.md
+data
